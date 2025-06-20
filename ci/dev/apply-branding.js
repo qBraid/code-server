@@ -142,15 +142,38 @@ function applyBrandingToReleaseArtifacts() {
     }
 
     // Patch Getting Started promotional tile.
-    const gsJsPath = path.join(dir, "lib", "vscode", "out", "vs", "workbench", "contrib", "welcomeGettingStarted", "browser", "gettingStarted.js")
+    const gsJsPath = path.join(
+      dir,
+      "lib",
+      "vscode",
+      "out",
+      "vs",
+      "workbench",
+      "contrib",
+      "welcomeGettingStarted",
+      "browser",
+      "gettingStarted.js",
+    )
     if (fs.existsSync(gsJsPath)) {
       let gs = fs.readFileSync(gsJsPath, "utf8")
       gs = gs
-        .replace(/https?:\\/\\/[^"']*code-server-to-coder[^"']*/g, "https://" + branding.companyDomain + "/home/introduction")
+        .replace(
+          /https?:\/\/[^"']*code-server-to-coder[^"']*/g,
+          "https://" + branding.companyDomain + "/home/introduction",
+        )
         .replace(/Deploy code-server for your team/g, "Learn more about qBraid")
-        .replace(/Provision software development environments on your infrastructure with Coder\./g, "Discover the qBraid quantum development platform.")
-        .replace(/Coder is a self-service portal[^"']*\./g, "qBraid provides managed quantum environments in the cloud.")
-        .replace(/src: '\.\/_static\/src\/browser\/media\/templates.png'/g, "src: './_static/src/browser/media/qbraid-tile.png'")
+        .replace(
+          /Provision software development environments on your infrastructure with Coder\./g,
+          "Discover the qBraid quantum development platform.",
+        )
+        .replace(
+          /Coder is a self-service portal[^"']*\./g,
+          "qBraid provides managed quantum environments in the cloud.",
+        )
+        .replace(
+          /src: '\.\/_static\/src\/browser\/media\/templates.png'/g,
+          "src: './_static/src/browser/media/qbraid-tile.png'",
+        )
       fs.writeFileSync(gsJsPath, gs)
     }
   }
