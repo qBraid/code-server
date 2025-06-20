@@ -57,21 +57,21 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
 +							'margin: 0px 0px 6px',
 +							'font-weight: 500',
 +						].join(';'),
-+					}, 'Deploy code-server for your team'),
++					}, 'Learn more about qBraid'),
 +					$('p', {
 +						style: [
 +							'margin: 0',
 +							'font-size: 13px',
 +							'color: #dcdee2',
 +						].join(';'),
-+					}, 'Provision software development environments on your infrastructure with Coder.'),
++					}, 'Explore cloud–hosted quantum IDEs and notebooks with qBraid.'),
 +					$('p', {
 +						style: [
 +							'margin-top: 8px',
 +							'font-size: 13px',
 +							'color: #dcdee2',
 +						].join(';'),
-+					}, 'Coder is a self-service portal which provisions via Terraform—Linux, macOS, Windows, x86, ARM, and, of course, Kubernetes based infrastructure.'),
++					}, 'Spin up managed environments for popular quantum SDKs in seconds.'),
 +					$('p', {
 +						style: [
 +							'margin: 0',
@@ -88,7 +88,7 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
 +						].join(';'),
 +					})),
 +					$('img', {
-+						src: './_static/src/browser/media/templates.png',
++						src: './_static/src/browser/media/qbraid-tile.png',
 +						style: [
 +							'margin-bottom: -65px',
 +						].join(';'),
