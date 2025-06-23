@@ -1,0 +1,45 @@
+# syntax=docker/dockerfile:experimental
+# QBraid customized Code-Server
+
+FROM codercom/code-server:latest
+
+ARG NB_USER="jovyan"
+ARG NB_UID="1000"
+ARG NB_GID="100"
+
+# Switch to root to make changes
+USER root
+
+# Create jovyan user and group
+RUN userdel coder && \
+    groupadd -f -g ${NB_GID} ${NB_USER} && \
+    useradd -u ${NB_UID} -g ${NB_GID} -m -s /bin/bash ${NB_USER}
+
+# Create extensions directory and copy extensions to permanent location
+RUN mkdir -p /opt/qbraid-extensions
+COPY ./extensions/ /opt/qbraid-extensions/
+
+# Copy the extension installation script
+COPY install-qbraid-extensions.sh /opt/install-qbraid-extensions.sh
+RUN chmod +x /opt/install-qbraid-extensions.sh
+# Set ownership for jovyan user
+RUN chown -R ${NB_USER}:${NB_GID} /opt/qbraid-extensions
+
+# Allow users to have scripts run on container startup to prepare workspace.
+ENV ENTRYPOINTD=/home/${NB_USER}/entrypoint.d
+
+# Disable authentication by setting empty password
+ENV PASSWORD=""
+
+# Create entrypoint.d directory and add our extension installation script
+RUN mkdir -p /home/${NB_USER}/entrypoint.d && \
+    echo '#!/bin/bash' > /home/${NB_USER}/entrypoint.d/install-extensions.sh && \
+    echo '/opt/install-qbraid-extensions.sh &' >> /home/${NB_USER}/entrypoint.d/install-extensions.sh && \
+    chmod +x /home/${NB_USER}/entrypoint.d/install-extensions.sh && \
+    chown -R ${NB_USER}:${NB_GID} /home/${NB_USER}/entrypoint.d
+
+EXPOSE 8080
+USER ${NB_USER}
+ENV USER=${NB_USER}
+WORKDIR /home/${NB_USER}
+ENTRYPOINT ["/usr/bin/entrypoint.sh", "--bind-addr", "0.0.0.0:8080", "--auth", "none", "."]
