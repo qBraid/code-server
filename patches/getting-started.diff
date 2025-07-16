@@ -1,7 +1,7 @@
 Modify Help: Getting Started
 
 This modifies some text on the Getting Started page and adds text about using
-code-server on a team.
+qBraid-Code on a team.
 
 It is enabled by default but can be overriden using the cli flag
 `--disable-getting-started-override`.
@@ -29,7 +29,7 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
  import { IWebviewElement, IWebviewService } from '../../webview/browser/webview.js';
  import './gettingStartedColors.js';
 @@ -874,6 +874,72 @@ export class GettingStartedPage extends
- 			$('p.subtitle.description', {}, localize({ key: 'gettingStarted.editingEvolved', comment: ['Shown as subtitle on the Welcome page.'] }, "Editing evolved"))
+ 			$('p.subtitle.description', {}, localize({ key: 'gettingStarted.editingEvolved', comment: ['Shown as subtitle on the Welcome page.'] }, "The best place to quantum"))
  		);
  
 +		let gettingStartedCoder: HTMLElement = $('.header', {});
@@ -39,7 +39,7 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
 +					style: 'margin-bottom: 12px',
 +				}, 'Next Up'),
 +				$('a', {
-+					href: 'https://cdr.co/code-server-to-coder',
++					href: 'https://docs.qbraid.com/home/introduction',
 +					target: '_blank',
 +				},
 +					$('button', {
@@ -57,7 +57,7 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
 +							'margin: 0px 0px 6px',
 +							'font-weight: 500',
 +						].join(';'),
-+					}, 'Deploy code-server for your team'),
++					}, 'Deploy qBraid-Code for your team'),
 +					$('p', {
 +						style: [
 +							'margin: 0',
