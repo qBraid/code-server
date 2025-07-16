@@ -274,6 +274,9 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
  
  		const productConfiguration: Partial<Mutable<IProductConfiguration>> = {
 +			codeServerVersion: this._productService.codeServerVersion,
++			applicationName: 'qBraid-Code',
++			nameLong: 'qBraid-Code',
++			nameShort: 'qBraid-Code',
  			embedderIdentifier: 'server-distro',
  			extensionsGallery: this._webExtensionResourceUrlTemplate && this._productService.extensionsGallery ? {
  				...this._productService.extensionsGallery,

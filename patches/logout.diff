@@ -99,7 +99,7 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
 +			MenuRegistry.appendMenuItem(menuId, {
 +				command: {
 +					id: CodeServerClient.LOGOUT_COMMAND_ID,
-+					title: localize('logout', "Sign out of {0}", 'code-server'),
++					title: localize('logout', "Sign out of {0}", 'qBraid-Code'),
 +				},
 +			});
 +		}
