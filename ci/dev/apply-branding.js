@@ -57,9 +57,11 @@ const replacements = [
 const assetReplacements = [
   { from: branding.faviconIco, to: "src/browser/media/favicon.ico" },
   { from: branding.faviconSvg, to: "src/browser/media/favicon.svg" },
+  { from: branding.faviconSvg, to: "src/browser/media/favicon-dark-support.svg" },
   { from: branding.logoSvg, to: "src/browser/media/logo.svg" },
   { from: branding.pwaIcon192, to: "src/browser/media/pwa-icon-192.png" },
   { from: branding.pwaIcon512, to: "src/browser/media/pwa-icon-512.png" },
+  { from: branding.tileImage, to: "src/browser/media/qbraid-tile.png" },
 ]
 
 // Directories that might contain prebuilt release artifacts we need to patch in-place.
@@ -81,9 +83,11 @@ function applyBrandingToReleaseArtifacts() {
     const relAssetTargets = [
       { from: branding.faviconIco, to: "src/browser/media/favicon.ico" },
       { from: branding.faviconSvg, to: "src/browser/media/favicon.svg" },
+      { from: branding.faviconSvg, to: "src/browser/media/favicon-dark-support.svg" },
       { from: branding.logoSvg, to: "src/browser/media/logo.svg" },
       { from: branding.pwaIcon192, to: "src/browser/media/pwa-icon-192.png" },
       { from: branding.pwaIcon512, to: "src/browser/media/pwa-icon-512.png" },
+      { from: branding.tileImage, to: "src/browser/media/qbraid-tile.png" },
     ]
 
     for (const asset of relAssetTargets) {
@@ -106,6 +110,72 @@ function applyBrandingToReleaseArtifacts() {
       json.documentationUrl = `https://${branding.companyDomain}`
       json.vendor = branding.companyName
     })
+
+    // Patch compiled login.js to change default app-name.
+    const loginJsPath = path.join(dir, "out", "node", "routes", "login.js")
+    if (fs.existsSync(loginJsPath)) {
+      let js = fs.readFileSync(loginJsPath, "utf8")
+      js = js.replace(/\|\|\s*["']code-server["']/, `|| "${branding.productName}"`)
+      fs.writeFileSync(loginJsPath, js)
+    }
+
+    // Remove or replace Coder promotional link.
+    const vscodeWebPath = path.join(dir, "lib", "vscode")
+    if (fs.existsSync(vscodeWebPath)) {
+      const grepFiles = (dirPath) => {
+        for (const entry of fs.readdirSync(dirPath, { withFileTypes: true })) {
+          const full = path.join(dirPath, entry.name)
+          if (entry.isDirectory()) grepFiles(full)
+          else if (entry.isFile()) {
+            let content = fs.readFileSync(full, "utf8")
+            if (content.includes("code-server-to-coder")) {
+              content = content.replace(
+                /https?:\/\/[^"']*code-server-to-coder[^"']*/g,
+                `https://${branding.companyDomain}`,
+              )
+              fs.writeFileSync(full, content)
+            }
+          }
+        }
+      }
+      grepFiles(vscodeWebPath)
+    }
+
+    // Patch Getting Started promotional tile.
+    const gsJsPath = path.join(
+      dir,
+      "lib",
+      "vscode",
+      "out",
+      "vs",
+      "workbench",
+      "contrib",
+      "welcomeGettingStarted",
+      "browser",
+      "gettingStarted.js",
+    )
+    if (fs.existsSync(gsJsPath)) {
+      let gs = fs.readFileSync(gsJsPath, "utf8")
+      gs = gs
+        .replace(
+          /https?:\/\/[^"']*code-server-to-coder[^"']*/g,
+          "https://" + branding.companyDomain + "/home/introduction",
+        )
+        .replace(/Deploy code-server for your team/g, "Learn more about qBraid")
+        .replace(
+          /Provision software development environments on your infrastructure with Coder\./g,
+          "Discover the qBraid quantum development platform.",
+        )
+        .replace(
+          /Coder is a self-service portal[^"']*\./g,
+          "qBraid provides managed quantum environments in the cloud.",
+        )
+        .replace(
+          /src: '\.\/_static\/src\/browser\/media\/templates.png'/g,
+          "src: './_static/src/browser/media/qbraid-tile.png'",
+        )
+      fs.writeFileSync(gsJsPath, gs)
+    }
   }
 }
 
