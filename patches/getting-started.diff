@@ -28,8 +28,16 @@ Index: code-server/lib/vscode/src/vs/workbench/contrib/welcomeGettingStarted/bro
  import { IEditorOpenContext, IEditorSerializer } from '../../../common/editor.js';
  import { IWebviewElement, IWebviewService } from '../../webview/browser/webview.js';
  import './gettingStartedColors.js';
-@@ -874,6 +874,72 @@ export class GettingStartedPage extends
- 			$('p.subtitle.description', {}, localize({ key: 'gettingStarted.editingEvolved', comment: ['Shown as subtitle on the Welcome page.'] }, "The One-Stop Quantum Platform"))
+@@ -872,8 +872,76 @@ export class GettingStartedPage extends
+ 		const header = $('.header', {},
+-			$('h1.product-name-container', {},
+-				$('span.product-name', {}, localize({ key: 'gettingStarted.productName', comment: ['Shown as title on the Welcome page.'] }, "code-server")),
+-			),
+-			$('p.subtitle.description', {}, localize({ key: 'gettingStarted.editingEvolved', comment: ['Shown as subtitle on the Welcome page.'] }, "Editing evolved"))
++			$('h1.product-name-container', {},
++				$('span.product-name', {}, localize({ key: 'gettingStarted.productName', comment: ['Shown as title on the Welcome page.'] }, "qBraid-Code")),
++			),
++			$('p.subtitle.description', {}, localize({ key: 'gettingStarted.editingEvolved', comment: ['Shown as subtitle on the Welcome page.'] }, "The best place to quantum"))
  		);
  
 +		let gettingStartedCoder: HTMLElement = $('.header', {});
