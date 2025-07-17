@@ -161,7 +161,7 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
  import { CharCode } from '../../base/common/charCode.js';
  import { IExtensionManifest } from '../../platform/extensions/common/extensions.js';
  import { ICSSDevelopmentService } from '../../platform/cssDev/node/cssDevService.js';
-@@ -388,14 +389,22 @@ export class WebClientServer {
+@@ -386,14 +387,22 @@ export class WebClientServer {
  		};
  
  		const cookies = cookie.parse(req.headers.cookie || '');
@@ -186,6 +186,26 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
  		}
  
  		const values: { [key: string]: string } = {
+Index: code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
++++ code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
+@@ -19,6 +19,7 @@ export const serverOptions: OptionDescri
+ 	'disable-file-downloads': { type: 'boolean' },
+ 	'disable-file-uploads': { type: 'boolean' },
+ 	'disable-getting-started-override': { type: 'boolean' },
++	'locale': { type: 'string' },
+ 
+ 	/* ----- server setup ----- */
+ 
+@@ -107,6 +108,7 @@ export interface ServerParsedArgs {
+ 	'disable-file-downloads'?: boolean;
+ 	'disable-file-uploads'?: boolean;
+ 	'disable-getting-started-override'?: boolean,
++	'locale'?: string
+ 
+ 	/* ----- server setup ----- */
+ 
 Index: code-server/lib/vscode/src/vs/platform/languagePacks/browser/languagePacks.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/platform/languagePacks/browser/languagePacks.ts
