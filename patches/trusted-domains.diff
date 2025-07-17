@@ -1,25 +1,5 @@
 Allow configuring trusted domains via product.json or flag.
 
-Index: code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
-===================================================================
---- code-server.orig/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
-+++ code-server/lib/vscode/src/vs/server/node/serverEnvironmentService.ts
-@@ -20,6 +20,7 @@ export const serverOptions: OptionDescri
- 	'disable-file-uploads': { type: 'boolean' },
- 	'disable-getting-started-override': { type: 'boolean' },
- 	'locale': { type: 'string' },
-+	'link-protection-trusted-domains': { type: 'string[]' },
- 
- 	/* ----- server setup ----- */
- 
-@@ -109,6 +110,7 @@ export interface ServerParsedArgs {
- 	'disable-file-uploads'?: boolean;
- 	'disable-getting-started-override'?: boolean,
- 	'locale'?: string
-+	'link-protection-trusted-domains'?: string[],
- 
- 	/* ----- server setup ----- */
- 
 Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
@@ -38,8 +18,8 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 +
  		const productConfiguration: Partial<Mutable<IProductConfiguration>> = {
  			codeServerVersion: this._productService.codeServerVersion,
- 			rootEndpoint: rootBase,
-@@ -353,6 +361,7 @@ export class WebClientServer {
+ 			applicationName: 'qBraid-Code',
+@@ -356,6 +364,7 @@ export class WebClientServer {
  			telemetryEndpoint: this._productService.telemetryEndpoint,
  			embedderIdentifier: 'server-distro',
  			extensionsGallery: this._productService.extensionsGallery,
