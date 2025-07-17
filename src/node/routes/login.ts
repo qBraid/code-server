@@ -2,11 +2,44 @@ import { Router, Request } from "express"
 import { promises as fs } from "fs"
 import { RateLimiter as Limiter } from "limiter"
 import * as path from "path"
+import { logger } from "@coder/logger"
 import { CookieKeys } from "../../common/http"
 import { rootPath } from "../constants"
 import { authenticated, getCookieOptions, redirect, replaceTemplates } from "../http"
 import i18n from "../i18n"
 import { getPasswordMethod, handlePasswordValidation, sanitizeString, escapeHtml } from "../util"
+
+interface BrandingConfig {
+  companyName: string
+  productName: string
+  companyDomain: string
+  logoSvg: string
+  faviconSvg: string
+  faviconIco: string
+  pwaIcon192: string
+  pwaIcon512: string
+}
+
+function getBrandingConfig(): BrandingConfig {
+  let branding: BrandingConfig = {
+    companyName: "qBraid",
+    productName: "qBraid-Code",
+    companyDomain: "qbraid.com",
+    logoSvg: "",
+    faviconSvg: "",
+    faviconIco: "",
+    pwaIcon192: "",
+    pwaIcon512: "",
+  }
+  
+  try {
+    branding = require(path.join(rootPath, "branding.json"))
+  } catch (error: any) {
+    logger.warn(`Failed to load branding configuration: ${error.message}`)
+  }
+  
+  return branding
+}
 
 // RateLimiter wraps around the limiter library for logins.
 // It allows 2 logins every minute plus 12 logins every hour.
@@ -30,7 +63,8 @@ const getRoot = async (req: Request, error?: Error): Promise<string> => {
   const content = await fs.readFile(path.join(rootPath, "src/browser/pages/login.html"), "utf8")
   const locale = req.args["locale"] || "en"
   i18n.changeLanguage(locale)
-  const appName = req.args["app-name"] || "code-server"
+  const branding = getBrandingConfig()
+  const appName = req.args["app-name"] || branding.productName
   const welcomeText = req.args["welcome-text"] || (i18n.t("WELCOME", { app: appName }) as string)
   let passwordMsg = i18n.t("LOGIN_PASSWORD", { configFile: req.args.config })
   if (req.args.usingEnvPassword) {
@@ -48,6 +82,8 @@ const getRoot = async (req: Request, error?: Error): Promise<string> => {
       .replace(/{{I18N_LOGIN_BELOW}}/g, i18n.t("LOGIN_BELOW"))
       .replace(/{{I18N_PASSWORD_PLACEHOLDER}}/g, i18n.t("PASSWORD_PLACEHOLDER"))
       .replace(/{{I18N_SUBMIT}}/g, i18n.t("SUBMIT"))
+      .replace(/{{PWA_ICON_192}}/g, branding.pwaIcon192)
+      .replace(/{{PWA_ICON_512}}/g, branding.pwaIcon512)
       .replace(/{{ERROR}}/, error ? `<div class="error">${escapeHtml(error.message)}</div>` : ""),
   )
 }

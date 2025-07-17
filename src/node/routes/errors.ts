@@ -8,6 +8,38 @@ import { replaceTemplates } from "../http"
 import { escapeHtml, getMediaMime } from "../util"
 import type { WebsocketRequest } from "../wsRouter"
 
+interface BrandingConfig {
+  companyName: string
+  productName: string
+  companyDomain: string
+  logoSvg: string
+  faviconSvg: string
+  faviconIco: string
+  pwaIcon192: string
+  pwaIcon512: string
+}
+
+function getBrandingConfig(): BrandingConfig {
+  let branding: BrandingConfig = {
+    companyName: "qBraid",
+    productName: "qBraid-Code",
+    companyDomain: "qbraid.com",
+    logoSvg: "",
+    faviconSvg: "",
+    faviconIco: "",
+    pwaIcon192: "",
+    pwaIcon512: "",
+  }
+  
+  try {
+    branding = require(path.join(rootPath, "branding.json"))
+  } catch (error: any) {
+    logger.warn(`Failed to load branding configuration: ${error.message}`)
+  }
+  
+  return branding
+}
+
 interface ErrorWithStatusCode {
   statusCode: number
 }
@@ -47,11 +79,15 @@ export const errorHandler: express.ErrorRequestHandler = async (err, req, res, n
     const resourcePath = path.resolve(rootPath, "src/browser/pages/error.html")
     res.set("Content-Type", getMediaMime(resourcePath))
     const content = await fs.readFile(resourcePath, "utf8")
+    const branding = getBrandingConfig()
     res.send(
       replaceTemplates(req, content)
         .replace(/{{ERROR_TITLE}}/g, statusCode.toString())
         .replace(/{{ERROR_HEADER}}/g, statusCode.toString())
-        .replace(/{{ERROR_BODY}}/g, escapeHtml(err.message)),
+        .replace(/{{ERROR_BODY}}/g, escapeHtml(err.message))
+        .replace(/{{PRODUCT_NAME}}/g, branding.productName)
+        .replace(/{{PWA_ICON_192}}/g, branding.pwaIcon192)
+        .replace(/{{PWA_ICON_512}}/g, branding.pwaIcon512),
     )
   } else {
     res.json({

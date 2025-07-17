@@ -8,7 +8,7 @@ import * as os from "os"
 import * as path from "path"
 import { logError } from "../../common/util"
 import { CodeArgs, toCodeArgs } from "../cli"
-import { isDevMode, vsRootPath } from "../constants"
+import { isDevMode, vsRootPath, rootPath } from "../constants"
 import { authenticated, ensureAuthenticated, ensureOrigin, redirect, replaceTemplates, self } from "../http"
 import { SocketProxyProvider } from "../socket"
 import { isFile } from "../util"
@@ -17,6 +17,38 @@ import { type WebsocketRequest, Router as WsRouter } from "../wsRouter"
 export const router = express.Router()
 
 export const wsRouter = WsRouter()
+
+interface BrandingConfig {
+  companyName: string
+  productName: string
+  companyDomain: string
+  logoSvg: string
+  faviconSvg: string
+  faviconIco: string
+  pwaIcon192: string
+  pwaIcon512: string
+}
+
+function getBrandingConfig(): BrandingConfig {
+  let branding: BrandingConfig = {
+    companyName: "qBraid",
+    productName: "qBraid-Code",
+    companyDomain: "qbraid.com",
+    logoSvg: "",
+    faviconSvg: "",
+    faviconIco: "",
+    pwaIcon192: "",
+    pwaIcon512: "",
+  }
+  
+  try {
+    branding = require(path.join(rootPath, "branding.json"))
+  } catch (error: any) {
+    logger.warn(`Failed to load branding configuration: ${error.message}`)
+  }
+  
+  return branding
+}
 
 /**
  * The API of VS Code's web client server.  code-server delegates requests to VS
@@ -172,7 +204,8 @@ router.get("/", ensureVSCodeLoaded, async (req, res, next) => {
 })
 
 router.get("/manifest.json", async (req, res) => {
-  const appName = req.args["app-name"] || "code-server"
+  const branding = getBrandingConfig()
+  const appName = req.args["app-name"] || branding.productName
   res.writeHead(200, { "Content-Type": "application/manifest+json" })
 
   res.end(
@@ -186,11 +219,18 @@ router.get("/manifest.json", async (req, res) => {
           display: "fullscreen",
           display_override: ["window-controls-overlay"],
           description: "Run Code on a remote server.",
-          icons: [192, 512].map((size) => ({
-            src: `{{BASE}}/_static/src/browser/media/pwa-icon-${size}.png`,
-            type: "image/png",
-            sizes: `${size}x${size}`,
-          })),
+          icons: [
+            {
+              src: `{{BASE}}/_static/${branding.pwaIcon192}`,
+              type: "image/png",
+              sizes: "192x192",
+            },
+            {
+              src: `{{BASE}}/_static/${branding.pwaIcon512}`,
+              type: "image/png",
+              sizes: "512x512",
+            },
+          ],
         },
         null,
         2,
