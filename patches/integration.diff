@@ -277,7 +277,7 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 +			applicationName: 'qBraid-Code',
 +			nameLong: 'qBraid-Code',
 +			nameShort: 'qBraid-Code',
- 			embedderIdentifier: 'server-distro',
++			embedderIdentifier: 'server-distro',
  			extensionsGallery: this._webExtensionResourceUrlTemplate && this._productService.extensionsGallery ? {
  				...this._productService.extensionsGallery,
 Index: code-server/lib/vscode/src/server-main.ts
