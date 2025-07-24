@@ -142,10 +142,9 @@ jobs:
           discussion_category_name: "📣 Announcements"
           files: ./release-packages/*
           
-      - name: Authenticate to GCP
+      - name: Write GCP credentials file
         run: |
-          echo "${{ secrets.GCP_UPLOAD_CREDENTIALS }}" > /tmp/gcp-key.json
-        shell: bash
+          printf '%s' "${{ secrets.GCP_UPLOAD_CREDENTIALS }}" > /tmp/gcp-key.json
 
       - name: Upload .deb files to GCP bucket
         uses: google-github-actions/upload-cloud-storage@v1
