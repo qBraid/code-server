@@ -142,13 +142,19 @@ jobs:
           discussion_category_name: "📣 Announcements"
           files: ./release-packages/*
           
+      - name: Authenticate to GCP
+        run: |
+          echo "${{ secrets.GCP_UPLOAD_CREDENTIALS }}" > /tmp/gcp-key.json
+        shell: bash
+
       - name: Upload .deb files to GCP bucket
         uses: google-github-actions/upload-cloud-storage@v1
         with:
           path: ./release-packages/
           destination: qbraid-code-server
           glob: '*.deb'
-          credentials: ${{ secrets.GCP_UPLOAD_CREDENTIALS }}
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
 
   package-macos-amd64:
     name: x86-64 macOS build
