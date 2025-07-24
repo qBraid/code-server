@@ -7,6 +7,14 @@ on:
         description: The version to publish (include "v", i.e. "v4.9.1").
         type: string
         required: true
+      environment:
+        description: The environment to release to (staging or production).
+        type: choice
+        options:
+          - staging
+          - production
+        required: true
+        default: 'staging'
 
 permissions:
   contents: write # For creating releases.
@@ -139,21 +147,21 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           draft: true
+          prerelease: ${{ github.event.inputs.environment == 'staging' }}
           discussion_category_name: "📣 Announcements"
           files: ./release-packages/*
           
-      - name: Write GCP credentials file
-        run: |
-          printf '%s' "${{ secrets.GCP_UPLOAD_CREDENTIALS }}" > /tmp/gcp-key.json
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.GCP_UPLOAD_CREDENTIALS }}
 
       - name: Upload .deb files to GCP bucket
-        uses: google-github-actions/upload-cloud-storage@v1
+        uses: google-github-actions/upload-cloud-storage@v2
         with:
           path: ./release-packages/
-          destination: qbraid-code-server
+          destination: qbraid-code-server/${{ github.event.inputs.environment }}
           glob: '*.deb'
-        env:
-          GOOGLE_APPLICATION_CREDENTIALS: /tmp/gcp-key.json
 
   package-macos-amd64:
     name: x86-64 macOS build
@@ -213,6 +221,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           draft: true
+          prerelease: ${{ github.event.inputs.environment == 'staging' }}
           discussion_category_name: "📣 Announcements"
           files: ./release-packages/*
 
@@ -274,6 +283,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           draft: true
+          prerelease: ${{ github.event.inputs.environment == 'staging' }}
           discussion_category_name: "📣 Announcements"
           files: ./release-packages/*
 
@@ -291,6 +301,7 @@ jobs:
       - uses: softprops/action-gh-release@v1
         with:
           draft: true
+          prerelease: ${{ github.event.inputs.environment == 'staging' }}
           discussion_category_name: "📣 Announcements"
           files: ./package.tar.gz
 
@@ -338,4 +349,3 @@ jobs:
         with:
           name: npm-release-package
           path: ./package.tar.gz
-
