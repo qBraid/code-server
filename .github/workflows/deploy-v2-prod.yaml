@@ -39,27 +39,40 @@ jobs:
   # Build the npm package with version modifications
   npm-version:
     name: Prepare npm package
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
+    runs-on: ubuntu-22.04
+    timeout-minutes: 60
     outputs:
       version: ${{ steps.version.outputs.version }}
+    env:
+      DISABLE_V8_COMPILE_CACHE: 1
     steps:
       - name: Checkout repo
         uses: actions/checkout@v4
         with:
-          submodules: recursive
+          submodules: true
+
+      - name: Install system dependencies
+        run: sudo apt-get update && sudo apt-get install -y libkrb5-dev quilt
+
+      - name: Apply patches with quilt
+        run: quilt push -a
 
       - name: Install Node.js
         uses: actions/setup-node@v4
         with:
           node-version-file: .node-version
           cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            test/package-lock.json
 
       - name: Install dependencies
-        run: npm ci
+        run: SKIP_SUBMODULE_DEPS=1 npm ci
 
-      - name: Apply patches and build
+      - name: Build code-server
         run: npm run build
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Set version
         id: version
