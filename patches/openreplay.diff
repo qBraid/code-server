@@ -97,6 +97,7 @@ Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
 +		}
 +	}
  }
+
 Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench.html
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/code/browser/workbench/workbench.html
@@ -113,6 +114,7 @@ Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench.html
  		<!-- Workbench Icon/Manifest/CSS -->
  		<link rel="icon" href="/_static/src/browser/media/favicon-dark-support.svg" />
  		<link rel="alternate icon" href="/_static/src/browser/media/favicon.ico" type="image/x-icon" />
+
 Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
@@ -129,6 +131,7 @@ Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
  		<!-- Workbench Icon/Manifest/CSS -->
  		<link rel="icon" href="/_static/src/browser/media/favicon-dark-support.svg" />
  		<link rel="alternate icon" href="/_static/src/browser/media/favicon.ico" type="image/x-icon" />
+
 Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
