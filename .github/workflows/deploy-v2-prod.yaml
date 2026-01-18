@@ -74,6 +74,15 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Build vscode
+        run: |
+          pushd lib/vscode
+          npm ci
+          popd
+          npm run build:vscode
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
       - name: Set version
         id: version
         run: |
