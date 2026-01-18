@@ -1,0 +1,166 @@
+Add OpenReplay session recording integration
+
+Integrates OpenReplay tracker into code-server for session recording
+and replay in the qBraid Lab VS Code environment.
+
+1. Add OpenReplay initialization to the client startup
+2. Inject OpenReplay script into workbench HTML templates
+3. Configure tracker with proper settings for CSS rendering
+
+Index: code-server/lib/vscode/src/vs/workbench/browser/client.ts
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/workbench/browser/client.ts
++++ code-server/lib/vscode/src/vs/workbench/browser/client.ts
+@@ -1,5 +1,10 @@
+ import { Disposable } from "../../base/common/lifecycle.js";
+ 
++// OpenReplay configuration - these can be overridden via environment
++const OPENREPLAY_INGEST_URL = 'https://openreplay-v2.qbraid.com/ingest';
++const OPENREPLAY_PROJECT_KEY_META = 'openreplay-project-key';
++const OPENREPLAY_USER_EMAIL_META = 'openreplay-user-email';
++
+ export class CodeServerClient extends Disposable {
+ 	constructor (
+ 	) {
+@@ -7,6 +12,9 @@ export class CodeServerClient extends Di
+ 	}
+ 
+ 	async startup(): Promise<void> {
++		// Initialize OpenReplay session recording
++		this.initializeOpenReplay();
++
+ 		// Emit ready events
+ 		const event = new CustomEvent('ide-ready');
+ 		window.dispatchEvent(event);
+@@ -43,4 +51,67 @@ export class CodeServerClient extends Di
+ 			});
+ 		}
+ 	}
++
++	/**
++	 * Initialize OpenReplay session recording.
++	 * Configuration is passed via meta tags in the HTML.
++	 */
++	private initializeOpenReplay(): void {
++		try {
++			// Get configuration from meta tags (set by server)
++			const projectKeyMeta = document.querySelector(`meta[name="${OPENREPLAY_PROJECT_KEY_META}"]`);
++			const userEmailMeta = document.querySelector(`meta[name="${OPENREPLAY_USER_EMAIL_META}"]`);
++
++			const projectKey = projectKeyMeta?.getAttribute('content');
++			const userEmail = userEmailMeta?.getAttribute('content');
++
++			if (!projectKey) {
++				console.log('[OpenReplay] No project key found, skipping initialization');
++				return;
++			}
++
++			// Check if OpenReplay is already loaded
++			if (!(window as any).OpenReplay) {
++				console.log('[OpenReplay] Tracker not loaded, skipping initialization');
++				return;
++			}
++
++			const Tracker = (window as any).OpenReplay;
++			const tracker = new Tracker({
++				projectKey: projectKey,
++				ingestPoint: OPENREPLAY_INGEST_URL,
++				// Required for proper CSS rendering in session replay
++				disableStringDict: true,
++				// Set base URL for relative resource paths
++				resourceBaseHref: window.location.origin,
++				// Capture console logs
++				consoleMethods: ['log', 'info', 'warn', 'error'],
++				// Network capture settings
++				network: {
++					capturePayload: false,
++					ignoreHeaders: ['Authorization', 'Cookie', 'X-Auth-Token'],
++				},
++			});
++
++			// Set user ID if available
++			if (userEmail) {
++				tracker.setUserID(userEmail);
++			}
++
++			// Add metadata
++			tracker.setMetadata('environment', 'vscode');
++			tracker.setMetadata('source', 'qbraid-lab-vscode');
++
++			// Start the tracker
++			tracker.start()
++				.then(() => console.log('[OpenReplay] Session recording started'))
++				.catch((err: Error) => console.error('[OpenReplay] Failed to start:', err));
++
++		} catch (error) {
++			console.error('[OpenReplay] Initialization error:', error);
++		}
++	}
+ }
+Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench.html
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/code/browser/workbench/workbench.html
++++ code-server/lib/vscode/src/vs/code/browser/workbench/workbench.html
+@@ -23,6 +23,11 @@
+ 		<meta id="vscode-workbench-builtin-extensions" data-settings="{{WORKBENCH_BUILTIN_EXTENSIONS}}">
+ 		<meta id="vscode-workbench-auth-session" data-settings="{{WORKBENCH_AUTH_SESSION}}">
+ 
++		<!-- OpenReplay Configuration -->
++		<meta name="openreplay-project-key" content="{{OPENREPLAY_PROJECT_KEY}}">
++		<meta name="openreplay-user-email" content="{{OPENREPLAY_USER_EMAIL}}">
++		<script src="https://cdn.jsdelivr.net/npm/@openreplay/tracker@17.1.5/dist/ortracker.min.js"></script>
++
+ 		<!-- Workbench Icon/Manifest/CSS -->
+ 		<link rel="icon" href="/_static/src/browser/media/favicon-dark-support.svg" />
+ 		<link rel="alternate icon" href="/_static/src/browser/media/favicon.ico" type="image/x-icon" />
+Index: code-server/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
++++ code-server/lib/vscode/src/vs/code/browser/workbench/workbench-dev.html
+@@ -26,6 +26,11 @@
+ 		<meta id="vscode-workbench-builtin-extensions" data-settings="{{WORKBENCH_BUILTIN_EXTENSIONS}}">
+ 		<meta id="vscode-workbench-auth-session" data-settings="{{WORKBENCH_AUTH_SESSION}}">
+ 
++		<!-- OpenReplay Configuration -->
++		<meta name="openreplay-project-key" content="{{OPENREPLAY_PROJECT_KEY}}">
++		<meta name="openreplay-user-email" content="{{OPENREPLAY_USER_EMAIL}}">
++		<script src="https://cdn.jsdelivr.net/npm/@openreplay/tracker@17.1.5/dist/ortracker.min.js"></script>
++
+ 		<!-- Workbench Icon/Manifest/CSS -->
+ 		<link rel="icon" href="/_static/src/browser/media/favicon-dark-support.svg" />
+ 		<link rel="alternate icon" href="/_static/src/browser/media/favicon.ico" type="image/x-icon" />
+Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
+===================================================================
+--- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
++++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
+@@ -304,6 +304,10 @@ export class WebClientServer {
+ 		const workbenchWebConfiguration: IWorkbenchConstructionOptions & { settingsSyncOptions?: ISettingsSyncOptions } = {
+ 			remoteAuthority,
+ 			webviewEndpoint: this._staticRoute + this._webviewEndpoint,
++			// OpenReplay configuration - passed to HTML template
++			openReplayProjectKey: process.env.OPENREPLAY_PROJECT_KEY || '',
++			openReplayUserEmail: process.env.JUPYTERHUB_USER || process.env.USER_EMAIL || '',
++			// End OpenReplay configuration
+ 			_wrapWebWorkerExtHostInIframe,
+ 			developmentOptions: { enableSmokeTestDriver: this._environmentService.args['enable-smoke-test-driver'] ? true : undefined, logLevel: this._logService.getLevel() },
+ 			settingsSyncOptions: !this._environmentService.isBuilt && this._environmentService.args['enable-sync'] ? { enabled: true } : undefined,
+@@ -384,6 +388,8 @@ export class WebClientServer {
+ 
+ 		let data;
+ 		if (!this._environmentService.isBuilt) {
++			data = data.replace(/{{OPENREPLAY_PROJECT_KEY}}/g, workbenchWebConfiguration.openReplayProjectKey || '');
++			data = data.replace(/{{OPENREPLAY_USER_EMAIL}}/g, workbenchWebConfiguration.openReplayUserEmail || '');
+ 			data = data.replace('{{WORKBENCH_WEB_BASE_URL}}', this._staticRoute);
+ 			data = data.replace('{{WORKBENCH_NLS_BASE_URL}}', nlsBaseUrl ? `${nlsBaseUrl}${!nlsBaseUrl.endsWith('/') ? '/' : ''}${this._productService.commit}/${this._productService.version}/` : '');
+ 			data = data.replace('{{WORKBENCH_NLS_FALLBACK_URL}}', '');
+@@ -414,6 +420,10 @@ export class WebClientServer {
+ 				values[`{{${key}}}`] = String(nlsConfiguration[key as keyof typeof nlsConfiguration]);
+ 			}
+ 
++			// OpenReplay configuration
++			values['{{OPENREPLAY_PROJECT_KEY}}'] = workbenchWebConfiguration.openReplayProjectKey || '';
++			values['{{OPENREPLAY_USER_EMAIL}}'] = workbenchWebConfiguration.openReplayUserEmail || '';
++
+ 			let newData = data;
+ 			for (const key in values) {
+ 				newData = newData.replace(new RegExp(escapeRegExpCharacters(key), 'g'), values[key]);

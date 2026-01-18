@@ -1,0 +1,295 @@
+# V2 Production Deployment Workflow for code-server
+# Builds code-server with qBraid patches and uploads .deb packages to GCS
+#
+# Uses Workload Identity Federation for GCP authentication (no service account keys)
+# Uploads to: gs://qbraid-code-server/production/release-packages/
+
+name: Deploy V2 Prod - code-server
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to build (e.g., 0.0.1). Will be prefixed with qbraid-'
+        type: string
+        required: true
+        default: '0.0.1'
+      skip_github_release:
+        description: 'Skip creating GitHub release (only upload to GCS)'
+        type: boolean
+        required: false
+        default: true
+
+env:
+  GCP_PROJECT_ID: qbraid-prod
+  GCP_REGION: us-central1
+  GCS_BUCKET: qbraid-code-server
+  WORKLOAD_IDENTITY_PROVIDER: projects/314301605548/locations/global/workloadIdentityPools/github-actions-v2-pool/providers/github-oidc-v2
+  SERVICE_ACCOUNT: github-actions-v2-deploy@qbraid-prod.iam.gserviceaccount.com
+
+permissions:
+  contents: write
+  id-token: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # Build the npm package with version modifications
+  npm-version:
+    name: Prepare npm package
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Apply patches and build
+        run: npm run build
+
+      - name: Set version
+        id: version
+        run: |
+          VERSION="${{ inputs.version }}"
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "Building version: ${VERSION}"
+
+      - name: Update version in package.json
+        run: |
+          npm version --no-git-tag-version "${{ steps.version.outputs.version }}"
+
+      - name: Update version in product.json
+        run: |
+          tmp=$(mktemp)
+          jq ".codeServerVersion = \"${{ steps.version.outputs.version }}\"" lib/vscode/product.json > "$tmp"
+          mv "$tmp" lib/vscode/product.json
+
+      - name: Create release package
+        run: npm run release
+
+      - name: Package release
+        run: tar -czf package.tar.gz release
+
+      - name: Upload npm package artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-release-package
+          path: ./package.tar.gz
+          retention-days: 1
+
+  # Build Linux packages (amd64 only for now - our primary target)
+  package-linux-amd64:
+    name: Build Linux amd64
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    needs: npm-version
+    container: "python:3.10-slim-bookworm"
+    env:
+      npm_config_arch: x64
+      PKG_ARCH: amd64
+      npm_config_build_from_source: true
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential \
+            libx11-dev \
+            libxkbfile-dev \
+            libsecret-1-dev \
+            libkrb5-dev \
+            ca-certificates \
+            curl \
+            wget \
+            rsync \
+            git \
+            jq
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install nfpm
+        run: |
+          mkdir -p ~/.local/bin
+          curl -sSfL https://github.com/goreleaser/nfpm/releases/download/v2.3.1/nfpm_2.3.1_Linux_x86_64.tar.gz | tar -C ~/.local/bin -zxv nfpm
+          echo "$HOME/.local/bin" >> $GITHUB_PATH
+
+      - run: SKIP_SUBMODULE_DEPS=1 npm ci
+
+      - name: Download npm package
+        uses: actions/download-artifact@v4
+        with:
+          name: npm-release-package
+
+      - name: Extract and build standalone
+        run: |
+          tar -xzf package.tar.gz
+          npm run release:standalone
+
+      - name: Build .deb package
+        env:
+          VERSION: ${{ needs.npm-version.outputs.version }}
+        run: npm run package $PKG_ARCH
+
+      - name: List built packages
+        run: ls -la ./release-packages/
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-amd64-packages
+          path: ./release-packages/*.deb
+          retention-days: 7
+
+  # Upload to GCS using Workload Identity Federation
+  upload-to-gcs:
+    name: Upload to GCS (V2 Prod)
+    runs-on: ubuntu-latest
+    needs: [npm-version, package-linux-amd64]
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-amd64-packages
+          path: ./release-packages/
+
+      - name: List packages to upload
+        run: |
+          echo "Packages to upload:"
+          ls -la ./release-packages/
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ env.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ env.SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+        with:
+          project_id: ${{ env.GCP_PROJECT_ID }}
+
+      - name: Upload .deb files to GCS
+        run: |
+          VERSION="${{ needs.npm-version.outputs.version }}"
+          
+          echo "Uploading packages to gs://${{ env.GCS_BUCKET }}/production/release-packages/"
+          
+          for file in ./release-packages/*.deb; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "Uploading: $filename"
+              gsutil cp "$file" "gs://${{ env.GCS_BUCKET }}/production/release-packages/$filename"
+            fi
+          done
+          
+          echo "Upload complete!"
+          echo ""
+          echo "Uploaded files:"
+          gsutil ls "gs://${{ env.GCS_BUCKET }}/production/release-packages/" | grep -E "\.deb$" | tail -10
+
+      - name: Output download URLs
+        run: |
+          VERSION="${{ needs.npm-version.outputs.version }}"
+          echo "## Package URLs" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Download the packages from GCS:" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          for file in ./release-packages/*.deb; do
+            if [ -f "$file" ]; then
+              filename=$(basename "$file")
+              echo "- \`gs://${{ env.GCS_BUCKET }}/production/release-packages/$filename\`" >> $GITHUB_STEP_SUMMARY
+            fi
+          done
+
+  # Optional: Create GitHub release
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [npm-version, package-linux-amd64]
+    if: ${{ inputs.skip_github_release != true }}
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: linux-amd64-packages
+          path: ./release-packages/
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v1
+        with:
+          tag_name: v${{ needs.npm-version.outputs.version }}
+          name: qBraid code-server v${{ needs.npm-version.outputs.version }}
+          draft: true
+          prerelease: false
+          files: ./release-packages/*
+          body: |
+            ## qBraid code-server v${{ needs.npm-version.outputs.version }}
+            
+            Custom code-server build with qBraid patches including:
+            - OpenReplay V2 session recording integration
+            - qBraid branding
+            
+            ### Installation
+            
+            Download the `.deb` package for your architecture and install:
+            ```bash
+            sudo dpkg -i code-server_${{ needs.npm-version.outputs.version }}_amd64.deb
+            ```
+            
+            ### OpenReplay Configuration
+            
+            Set the following environment variables before starting code-server:
+            - `OPENREPLAY_PROJECT_KEY`: Your OpenReplay project key
+            - `JUPYTERHUB_USER` or `USER_EMAIL`: User identifier for session tracking
+
+  # Summary job
+  summary:
+    name: Build Summary
+    runs-on: ubuntu-latest
+    needs: [npm-version, package-linux-amd64, upload-to-gcs]
+    if: always()
+    steps:
+      - name: Generate summary
+        run: |
+          echo "## V2 Production Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Version:** ${{ needs.npm-version.outputs.version }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Prepare npm package | ${{ needs.npm-version.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Linux amd64 | ${{ needs.package-linux-amd64.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Upload to GCS | ${{ needs.upload-to-gcs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### GCS Location" >> $GITHUB_STEP_SUMMARY
+          echo "\`gs://qbraid-code-server/production/release-packages/\`" >> $GITHUB_STEP_SUMMARY
