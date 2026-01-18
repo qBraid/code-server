@@ -141,6 +141,7 @@ jobs:
             ca-certificates \
             curl \
             wget \
+            gettext-base \
             rsync \
             git \
             jq
