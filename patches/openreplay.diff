@@ -133,34 +133,27 @@ Index: code-server/lib/vscode/src/vs/server/node/webClientServer.ts
 ===================================================================
 --- code-server.orig/lib/vscode/src/vs/server/node/webClientServer.ts
 +++ code-server/lib/vscode/src/vs/server/node/webClientServer.ts
-@@ -304,6 +304,10 @@ export class WebClientServer {
- 		const workbenchWebConfiguration: IWorkbenchConstructionOptions & { settingsSyncOptions?: ISettingsSyncOptions } = {
- 			remoteAuthority,
- 			webviewEndpoint: this._staticRoute + this._webviewEndpoint,
+@@ -368,5 +368,9 @@ export class WebClientServer {
+ 			folderUri: resolveWorkspaceURI(this._environmentService.args['default-folder']),
+ 			workspaceUri: resolveWorkspaceURI(this._environmentService.args['default-workspace']),
+ 			productConfiguration,
+-			callbackRoute: callbackRoute
++			callbackRoute: callbackRoute,
 +			// OpenReplay configuration - passed to HTML template
 +			openReplayProjectKey: process.env.OPENREPLAY_PROJECT_KEY || '',
-+			openReplayUserEmail: process.env.JUPYTERHUB_USER || process.env.USER_EMAIL || '',
++			openReplayUserEmail: process.env.JUPYTERHUB_USER || process.env.USER_EMAIL || ''
 +			// End OpenReplay configuration
- 			_wrapWebWorkerExtHostInIframe,
- 			developmentOptions: { enableSmokeTestDriver: this._environmentService.args['enable-smoke-test-driver'] ? true : undefined, logLevel: this._logService.getLevel() },
- 			settingsSyncOptions: !this._environmentService.isBuilt && this._environmentService.args['enable-sync'] ? { enabled: true } : undefined,
-@@ -384,6 +388,8 @@ export class WebClientServer {
+ 		};
  
- 		let data;
- 		if (!this._environmentService.isBuilt) {
-+			data = data.replace(/{{OPENREPLAY_PROJECT_KEY}}/g, workbenchWebConfiguration.openReplayProjectKey || '');
-+			data = data.replace(/{{OPENREPLAY_USER_EMAIL}}/g, workbenchWebConfiguration.openReplayUserEmail || '');
- 			data = data.replace('{{WORKBENCH_WEB_BASE_URL}}', this._staticRoute);
- 			data = data.replace('{{WORKBENCH_NLS_BASE_URL}}', nlsBaseUrl ? `${nlsBaseUrl}${!nlsBaseUrl.endsWith('/') ? '/' : ''}${this._productService.commit}/${this._productService.version}/` : '');
- 			data = data.replace('{{WORKBENCH_NLS_FALLBACK_URL}}', '');
-@@ -414,6 +420,10 @@ export class WebClientServer {
- 				values[`{{${key}}}`] = String(nlsConfiguration[key as keyof typeof nlsConfiguration]);
- 			}
- 
+ 		const cookies = cookie.parse(req.headers.cookie || '');
+@@ -385,6 +389,9 @@ export class WebClientServer {
+ 			WORKBENCH_WEB_CONFIGURATION: asJSON(workbenchWebConfiguration),
+ 			WORKBENCH_AUTH_SESSION: authSessionInfo ? asJSON(authSessionInfo) : '',
+ 			WORKBENCH_WEB_BASE_URL: staticRoute,
+ 			WORKBENCH_NLS_URL,
+-			WORKBENCH_NLS_FALLBACK_URL: `${staticRoute}/out/nls.messages.js`
++			WORKBENCH_NLS_FALLBACK_URL: `${staticRoute}/out/nls.messages.js`,
 +			// OpenReplay configuration
-+			values['{{OPENREPLAY_PROJECT_KEY}}'] = workbenchWebConfiguration.openReplayProjectKey || '';
-+			values['{{OPENREPLAY_USER_EMAIL}}'] = workbenchWebConfiguration.openReplayUserEmail || '';
-+
- 			let newData = data;
- 			for (const key in values) {
- 				newData = newData.replace(new RegExp(escapeRegExpCharacters(key), 'g'), values[key]);
++			OPENREPLAY_PROJECT_KEY: process.env.OPENREPLAY_PROJECT_KEY || '',
++			OPENREPLAY_USER_EMAIL: process.env.JUPYTERHUB_USER || process.env.USER_EMAIL || ''
+ 		};
