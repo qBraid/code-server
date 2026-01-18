@@ -79,7 +79,7 @@ jobs:
           pushd lib/vscode
           npm ci
           popd
-          npm run build:vscode
+          VERSION=${{ inputs.version }} npm run build:vscode
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
