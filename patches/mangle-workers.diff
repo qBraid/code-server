@@ -1,0 +1,28 @@
+Reduce mangler worker pool to 1 worker for Cloud Build
+
+The VS Code mangler spawns 4 rename workers, each loading the entire
+TypeScript project into a separate language service (~4GB heap each).
+On E2_HIGHCPU_32 (32GB RAM) this causes ERR_WORKER_OUT_OF_MEMORY.
+
+Reducing to 1 worker makes the build fit in memory at the cost of
+slower mangling (~10-15 min longer). Also allow the count to be
+overridden via the VSCODE_MANGLE_WORKERS environment variable.
+
+Index: code-server/lib/vscode/build/lib/mangle/index.ts
+===================================================================
+--- code-server.orig/lib/vscode/build/lib/mangle/index.ts
++++ code-server/lib/vscode/build/lib/mangle/index.ts
+@@ -406,9 +406,11 @@ export class Mangler {
+ 		private readonly config: { readonly manglePrivateFields: boolean; readonly mangleExports: boolean },
+ 	) {
+ 
++		const mangleWorkers = parseInt(process.env['VSCODE_MANGLE_WORKERS'] || '0') || 1;
++
+ 		this.renameWorkerPool = workerpool.pool(path.join(__dirname, 'renameWorker.js'), {
+-			maxWorkers: 4,
+-			minWorkers: 'max'
++			maxWorkers: mangleWorkers,
++			minWorkers: mangleWorkers
+ 		});
+ 	}
+ 
